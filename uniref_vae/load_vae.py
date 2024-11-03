@@ -24,9 +24,9 @@ def load_vae(
 
     # load in state dict of trained model:
     if path_to_vae_statedict:
-        state_dict = torch.load(path_to_vae_statedict) 
+        state_dict = torch.load(path_to_vae_statedict,map_location=torch.device('cpu')) 
         vae.load_state_dict(state_dict, strict=True) 
-    vae = vae.cuda()
+    vae = vae.to('cpu')
     vae = vae.eval()
 
     # set max string length that VAE can generate

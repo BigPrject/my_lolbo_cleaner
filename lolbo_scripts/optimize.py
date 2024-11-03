@@ -54,9 +54,9 @@ class Optimize(object):
         minimize: bool=False,
         max_n_oracle_calls: int=200_000_000_000,
         learning_rte: float=0.001,
-        acq_func: str="ts",
+        acq_func: str="ei",
         bsz: int=10,
-        num_initialization_points: int=10_000,
+        num_initialization_points: int=100,
         init_n_update_epochs: int=80,
         num_update_epochs: int=2,
         e2e_freq: int=10,
@@ -189,6 +189,8 @@ class Optimize(object):
                 "n_oracle_calls":self.lolbo_state.objective.num_calls,
                 "total_number_of_e2e_updates":self.lolbo_state.tot_num_e2e_updates,
                 "best_input_seen":self.lolbo_state.best_x_seen,
+                "ei_seen": self.lolbo_state.ei_seen,
+                
             }
             dict_log[f"TR_length"] = self.lolbo_state.tr_state.length
             self.tracker.log(dict_log) 

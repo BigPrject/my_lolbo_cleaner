@@ -30,7 +30,7 @@ def update_models_end_to_end(
             batch_y = train_y_scores[start_idx:stop_idx]
             batch_y = torch.tensor(batch_y).float() 
             pred = model(z)
-            surr_loss = -mll(pred, batch_y.cuda())
+            surr_loss = -mll(pred, batch_y.to('cpu'))
             # add losses and back prop 
             loss = vae_loss + surr_loss
             optimizer.zero_grad()
@@ -54,13 +54,13 @@ def update_surr_model(
     model = model.train() 
     optimizer = torch.optim.Adam([{'params': model.parameters(), 'lr': learning_rte} ], lr=learning_rte)
     train_bsz = min(len(train_y),128)
-    train_dataset = TensorDataset(train_z.cuda(), train_y.cuda())
+    train_dataset = TensorDataset(train_z.to('cpu'), train_y.to('cpu'))
     train_loader = DataLoader(train_dataset, batch_size=train_bsz, shuffle=True)
     for _ in range(n_epochs):
         for (inputs, scores) in train_loader:
             optimizer.zero_grad()
-            output = model(inputs.cuda())
-            loss = -mll(output, scores.cuda())
+            output = model(inputs.to('cpu'))
+            loss = -mll(output, scores.to('cpu'))
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()

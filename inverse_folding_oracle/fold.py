@@ -72,7 +72,7 @@ def seq_to_pdb(seq, save_path="./output.pdb", model=None):
     if model is None:
         model = EsmForProteinFolding.from_pretrained("facebook/esmfold_v1")
 
-    model = model.cuda() 
+    model = model.to('cpu') 
     tokenizer = AutoTokenizer.from_pretrained("facebook/esmfold_v1")
 
     ### Added by Natalie, remove tokens in UNIREF that are unsupported by ESM  
@@ -83,7 +83,7 @@ def seq_to_pdb(seq, save_path="./output.pdb", model=None):
     seq = seq.replace("O", "") 
     seq = seq.replace("B", "")
 
-    tokenized_input = tokenizer([seq], return_tensors="pt", add_special_tokens=False)['input_ids'].cuda() 
+    tokenized_input = tokenizer([seq], return_tensors="pt", add_special_tokens=False)['input_ids'].to('cpu') 
 
     with torch.no_grad():
         output = model(tokenized_input)
@@ -96,7 +96,7 @@ def seq_to_pdb(seq, save_path="./output.pdb", model=None):
 
 def fold_aa_seq(aa_seq, esm_model=None):
     if esm_model is None:
-        esm_model = EsmForProteinFolding.from_pretrained("facebook/esmfold_v1").cuda() 
+        esm_model = EsmForProteinFolding.from_pretrained("facebook/esmfold_v1").to('cpu') 
     if not os.path.exists("temp_pdbs/"):
         os.mkdir("temp_pdbs/")
     folded_pdb_path = f"temp_pdbs/{uuid.uuid1()}.pdb"
@@ -106,7 +106,7 @@ def fold_aa_seq(aa_seq, esm_model=None):
 def load_esm_if_model():
     if_model, if_alphabet = esm.pretrained.esm_if1_gvp4_t16_142M_UR50()
     if_model = if_model.eval() 
-    if_model = if_model.cuda() 
+    if_model = if_model.to('cpu') 
     return if_model, if_alphabet 
 
 def get_gvp_encoding(pdb_path, chain_id='A', model=None, alphabet=None):
@@ -115,20 +115,20 @@ def get_gvp_encoding(pdb_path, chain_id='A', model=None, alphabet=None):
         if model is None:
             model, alphabet = esm.pretrained.esm_if1_gvp4_t16_142M_UR50()
         model = model.eval()
-        model = model.cuda() 
+        model = model.to('cpu') 
 
         structure = esm.inverse_folding.util.load_structure(pdb_path, chain_id)
 
         # Extracting Coordinates from Structure
         coords, native_seq = esm.inverse_folding.util.extract_coords_from_structure(structure)
-        coords = torch.tensor(coords) # .cuda() 
+        coords = torch.tensor(coords) # .to('cpu') 
 
-        batch_converter = CoordBatchConverter(alphabet) # .cuda() 
+        batch_converter = CoordBatchConverter(alphabet) # .to('cpu') 
         batch = [(coords, None, native_seq)]
 
         coords, confidence, strs, tokens, padding_mask = batch_converter(batch)
-        confidence = confidence.cuda() 
-        gvp_out = model.encoder.forward_embedding(coords.cuda(), padding_mask=padding_mask.cuda(), confidence=confidence)[1]['gvp_out']
+        confidence = confidence.to('cpu') 
+        gvp_out = model.encoder.forward_embedding(coords.to('cpu'), padding_mask=padding_mask.to('cpu'), confidence=confidence)[1]['gvp_out']
 
     # gvp_out.shape   torch.Size([1, 123, 512]) 
     return gvp_out
@@ -138,7 +138,7 @@ def aa_seq_to_gvp_encoding(aa_seq, if_model=None, if_alphabet=None, fold_model=N
     if (if_model is None) or (if_alphabet is None):
         if_model, if_alphabet = load_esm_if_model()
     if fold_model is None: 
-        fold_model = EsmForProteinFolding.from_pretrained("facebook/esmfold_v1").cuda() 
+        fold_model = EsmForProteinFolding.from_pretrained("facebook/esmfold_v1").to('cpu') 
     folded_pdb = fold_aa_seq(aa_seq, esm_model=fold_model)
     with torch.no_grad():
         encoding = get_gvp_encoding(pdb_path=folded_pdb, model=if_model, alphabet=if_alphabet) 
@@ -150,7 +150,7 @@ def aa_seqs_list_to_avg_gvp_encodings(aa_seq_list, if_model=None, if_alphabet=No
         if (if_model is None) or (if_alphabet is None):
             if_model, if_alphabet = load_esm_if_model()
         if fold_model is None: 
-            fold_model = EsmForProteinFolding.from_pretrained("facebook/esmfold_v1").cuda() 
+            fold_model = EsmForProteinFolding.from_pretrained("facebook/esmfold_v1").to('cpu') 
         folded_pdbs = [fold_aa_seq(aa_seq, esm_model=fold_model) for aa_seq in aa_seq_list]
 
         # V1 get individually  

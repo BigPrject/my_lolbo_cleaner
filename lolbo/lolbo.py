@@ -12,6 +12,7 @@ from lolbo.utils.utils import (
 )
 from lolbo.utils.bo_utils.ppgpr import GPModelDKL
 import numpy as np
+import os
 
 
 class LOLBOState:
@@ -29,8 +30,13 @@ class LOLBOState:
         init_n_epochs=20,
         learning_rte=0.01,
         bsz=10,
-        acq_func='ts',
+        acq_func='ei',
         verbose=True,
+        iterations=0,
+        accumulated_z_next = [],
+        accumulated_mean = [],
+        accumulated_variance = []
+        
     ):
         self.objective          = objective         # objective with vae for particular task
         self.train_x            = train_x           # initial train x data
@@ -45,11 +51,15 @@ class LOLBOState:
         self.bsz                = bsz               # acquisition batch size
         self.acq_func           = acq_func          # acquisition function (Expected Improvement (ei) or Thompson Sampling (ts))
         self.verbose            = verbose
+        self.iterations         = iterations        #iterations counter for saving gp mean, vars, x_next
+        self.accumulated_z_next = accumulated_z_next
+        self.accumulated_mean = accumulated_mean
+        self.accumulated_variance = accumulated_variance
 
         assert acq_func in ["ei", "ts"]
         if minimize:
             self.train_y = self.train_y * -1
-
+        self.ei_seen = 0
         self.progress_fails_since_last_e2e = 0
         self.tot_num_e2e_updates = 0
         # self.best_score_seen = torch.max(train_y)
@@ -112,6 +122,7 @@ class LOLBOState:
             self.top_k_scores = []
             self.top_k_xs = []
             self.top_k_zs = []
+            # add self .ei scores and graph
             if self.train_c is not None:
                 self.top_k_cs = []
 
@@ -152,24 +163,24 @@ class LOLBOState:
         self.c_models = []
         self.c_mlls = []
         for i in range(self.train_c.shape[1]):
-            likelihood = gpytorch.likelihoods.GaussianLikelihood().cuda() 
+            likelihood = gpytorch.likelihoods.GaussianLikelihood().to('cpu')
             n_pts = min(self.train_z.shape[0], 1024)
-            c_model = GPModelDKL(self.train_z[:n_pts, :].cuda(), likelihood=likelihood ).cuda()
+            c_model = GPModelDKL(self.train_z[:n_pts, :].to('cpu'), likelihood=likelihood ).to('cpu')
             c_mll = PredictiveLogLikelihood(c_model.likelihood, c_model, num_data=self.train_z.size(-2))
             c_model = c_model.eval() 
-            # c_model = self.model.cuda()
+            # c_model = self.model.to('cpu')
             self.c_models.append(c_model)
             self.c_mlls.append(c_mll)
         return self 
 
 
-    def initialize_surrogate_model(self ):
-        likelihood = gpytorch.likelihoods.GaussianLikelihood().cuda() 
+    def initialize_surrogate_model(self):
+        likelihood = gpytorch.likelihoods.GaussianLikelihood().to('cpu') 
         n_pts = min(self.train_z.shape[0], 1024)
-        self.model = GPModelDKL(self.train_z[:n_pts, :].cuda(), likelihood=likelihood ).cuda()
+        self.model = GPModelDKL(self.train_z[:n_pts, :].to('cpu'), likelihood=likelihood ).to('cpu')
         self.mll = PredictiveLogLikelihood(self.model.likelihood, self.model, num_data=self.train_z.size(-2))
         self.model = self.model.eval() 
-        self.model = self.model.cuda()
+        self.model = self.model.to('cpu')
 
         if self.train_c is not None:
             self.initialize_constraint_surrogates()
@@ -219,7 +230,7 @@ class LOLBOState:
                     min_idx = self.top_k_scores.index(min_score)
                     self.top_k_scores[min_idx] = score.item()
                     self.top_k_xs[min_idx] = x_next_[i]
-                    self.top_k_zs[min_idx] = z_next_[i].unsqueeze(-2) # .cuda()
+                    self.top_k_zs[min_idx] = z_next_[i].unsqueeze(-2) # .to('cpu')
                     if self.train_c is not None: # if constrained, update best constraints too
                         self.top_k_cs[min_idx] = c_next_[i].unsqueeze(-2)
                 #if this is the first valid example we've found, OR if we imporve 
@@ -366,11 +377,11 @@ class LOLBOState:
                     if self.minimize:
                         scores_arr = scores_arr * -1
                     pred = self.model(valid_zs)
-                    loss = -self.mll(pred, scores_arr.cuda())
+                    loss = -self.mll(pred, scores_arr.to('cpu'))
                     if self.train_c is not None: 
                         for ix, c_model in enumerate(self.c_models):
-                            pred2 = c_model(valid_zs.cuda())
-                            loss += -self.c_mlls[ix](pred2, constraints_tensor[:,ix].cuda())
+                            pred2 = c_model(valid_zs.to('cpu'))
+                            loss += -self.c_mlls[ix](pred2, constraints_tensor[:,ix].to('cpu'))
                     optimizer1.zero_grad()
                     loss.backward() 
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
@@ -402,7 +413,7 @@ class LOLBOState:
             constraint_model_list=self.c_models
         else:
             constraint_model_list = None 
-        z_next = generate_batch(
+        z_next, mean, variance, ei = generate_batch(
             state=self.tr_state,
             model=self.model,
             X=self.train_z,
@@ -411,6 +422,12 @@ class LOLBOState:
             acqf=self.acq_func,
             constraint_model_list=constraint_model_list,
         )
+        self.accumulate_gp_predictions(z_next, mean, variance)
+        self.ei_seen = ei if ei is not None else -1e9
+        self.iterations+=1
+        if self.iterations % 10 == 0:
+            self.save_gp_predictions_iteration()
+            
         # 2. Evaluate the batch of candidates by calling oracle
         with torch.no_grad():
             out_dict = self.objective(z_next)
@@ -434,5 +451,30 @@ class LOLBOState:
             self.progress_fails_since_last_e2e += 1
             if self.verbose:
                 print("GOT NO VALID Y_NEXT TO UPDATE DATA, RERUNNING ACQUISITOIN...")
-
+    
+    
+    def accumulate_gp_predictions(self, z_next, mean, variance):
+        #helper function to append 
+        self.accumulated_z_next.append(z_next.cpu().numpy())
+        self.accumulated_mean.append(mean.cpu().numpy())
+        self.accumulated_variance.append(variance.cpu().numpy())
+                    
+    def save_gp_predictions_iteration(self):
+        # directory for saving data
+        folder = "gp_predictions"
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+            
+        # Save file with the current iteration number
+        file_path = f"{folder}/gp_predictions_iter_{self.iterations // 10}.npz"
+        np.savez(
+            file_path,
+            z_next=self.accumulated_z_next,
+            mean=self.accumulated_mean,
+            variance=self.accumulated_variance
+        )
+        print(f"Saved accumulated data to {file_path}")
+        self.accumulated_mean = []
+        self.accumulated_variance = []
+        self.accumulated_z_next = []
 

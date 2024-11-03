@@ -152,7 +152,7 @@ class LolRobotState(RobotState):
                 min_idx = self.top_k_scores.index(min_score)
                 self.top_k_scores[min_idx] = score.item()
                 self.top_k_xs[min_idx] = x_next_[i]
-                self.top_k_zs[min_idx] = z_next_[i].unsqueeze(-2) # .cuda()
+                self.top_k_zs[min_idx] = z_next_[i].unsqueeze(-2) # .to('cpu')
             #if we imporve 
             if score.item() > self.best_score_seen:
                 self.progress_fails_since_last_e2e = 0
@@ -219,7 +219,7 @@ class LolRobotState(RobotState):
                     if self.minimize:
                         scores_arr = scores_arr * -1
                     pred = self.model(valid_zs)
-                    loss = -self.mll(pred, scores_arr.cuda())
+                    loss = -self.mll(pred, scores_arr.to('cpu'))
                     optimizer1.zero_grad()
                     loss.backward()
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)

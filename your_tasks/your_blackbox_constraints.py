@@ -159,7 +159,7 @@ class PlddtConstraint(ConstraintFunction):
         self.tokenizer = AutoTokenizer.from_pretrained("facebook/esmfold_v1")
         self.fold_model = EsmForProteinFolding.from_pretrained("facebook/esmfold_v1")
         self.fold_model = self.fold_model.eval() 
-        self.fold_model = self.fold_model.cuda()
+        self.fold_model = self.fold_model.to('cpu')
 
         super().__init__(
             threshold_type=threshold_type,

@@ -31,7 +31,7 @@ def create_esmif_init_data(
     assert os.path.exists(target_pdb_path)
 
     if_model, _ = esm.pretrained.esm_if1_gvp4_t16_142M_UR50()
-    if_model = if_model.cuda() 
+    if_model = if_model.to('cpu') 
     if_model = if_model.eval()
     structure = esm.inverse_folding.util.load_structure(target_pdb_path, chain_id)
     coords, _ = esm.inverse_folding.util.extract_coords_from_structure(structure)
@@ -54,7 +54,7 @@ def create_esmif_init_data(
 
     esm_model = EsmForProteinFolding.from_pretrained("facebook/esmfold_v1")
     esm_model = esm_model.eval() 
-    esm_model = esm_model.cuda()
+    esm_model = esm_model.to('cpu')
     
     scores_list = [] 
     for seq in all_sampled_seqs:

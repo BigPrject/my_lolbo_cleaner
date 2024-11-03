@@ -52,9 +52,9 @@ class InfoTransformerVAEDiverseObjective(LatentSpaceObjective):
         '''
         if type(z) is np.ndarray: 
             z = torch.from_numpy(z).float()
-        z = z.cuda()
+        z = z.to('cpu')
         self.vae = self.vae.eval()
-        self.vae = self.vae.cuda()
+        self.vae = self.vae.to('cpu')
         # sample molecular string form VAE decoder
         sample = self.vae.sample(z=z.reshape(-1, 2, self.dim//2))
         # grab decoded aa strings
@@ -100,7 +100,7 @@ class InfoTransformerVAEDiverseObjective(LatentSpaceObjective):
         tokenized_seqs = self.dataobj.tokenize_sequence(xs_batch)
         encoded_seqs = [self.dataobj.encode(seq).unsqueeze(0) for seq in tokenized_seqs]
         X = collate_fn(encoded_seqs)
-        dict = self.vae(X.cuda())
+        dict = self.vae(X.to('cpu'))
         vae_loss, z = dict['loss'], dict['z']
         z = z.reshape(-1,self.dim)
 

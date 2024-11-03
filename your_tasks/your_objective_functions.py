@@ -3,7 +3,7 @@ Note: All code assumes we seek to maximize f(x)
 If you want to instead MINIMIZE the objecitve, multiple scores by -1 in 
 your query_black_box() method 
 ''' 
-
+from lolbo import MoleculeObjective
 import sys 
 sys.path.append("../")
 import numpy as np 
@@ -48,6 +48,8 @@ class ObjectiveFunction:
         raise NotImplementedError("Must implement method query_black_box() for the black box objective")
 
 
+
+
 class ExampleObjective(ObjectiveFunction):
     ''' Example objective funciton length of the input space items
         This is just a dummy example where the objective is the 
@@ -84,7 +86,7 @@ class InverseFoldTMScoreObjective(ObjectiveFunction):
     ):
         self.esm_model = EsmForProteinFolding.from_pretrained("facebook/esmfold_v1")
         self.esm_model = self.esm_model.eval() 
-        self.esm_model = self.esm_model.cuda()
+        self.esm_model = self.esm_model.to('cpu')
         self.target_pdb_path = f"../inverse_folding_oracle/target_pdb_files/target_structure_{target_pdb_id}.pdb"
         assert os.path.exists(self.target_pdb_path)
         super().__init__()
@@ -107,7 +109,9 @@ whcih specifies which diversity function to use
 --task_specific_args can be used to specify a list of args passed into the init of 
 any of these objectives when they are initialized 
 '''
+
 OBJECTIVE_FUNCTIONS_DICT = {
     'example':ExampleObjective,
     'if_tm_score':InverseFoldTMScoreObjective,
+    'guacamol' : MoleculeObjective
 }

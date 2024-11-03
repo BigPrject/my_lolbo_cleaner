@@ -1,0 +1,19 @@
+FROM pytorch/pytorch:latest
+RUN pip install fire rdkit-pypi gpytorch botorch guacamol wandb selfies \
+6
+
+    pytorch_lightning pandas networkx matplotlib && \
+7
+
+    apt update && \
+8
+
+    apt install -y build-essential libxrender1 libxext6 software-properties-common apt-utils && \
+9
+
+    conda update -n base -c defaults conda && \
+10
+
+    conda install -c conda-forge -y pomegranate && \
+11
+

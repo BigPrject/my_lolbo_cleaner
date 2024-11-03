@@ -127,12 +127,12 @@ class RobotState:
 
 
     def initialize_global_surrogate_model(self ):
-        likelihood = gpytorch.likelihoods.GaussianLikelihood().cuda() 
+        likelihood = gpytorch.likelihoods.GaussianLikelihood().to('cpu') 
         n_pts = min(self.search_space_data().shape[0], 1024)
-        self.model = GPModelDKL(self.search_space_data()[:n_pts, :].cuda(), likelihood=likelihood ).cuda()
+        self.model = GPModelDKL(self.search_space_data()[:n_pts, :].to('cpu'), likelihood=likelihood ).to('cpu')
         self.mll = PredictiveLogLikelihood(self.model.likelihood, self.model, num_data=self.search_space_data().size(-2))
         self.model = self.model.eval() 
-        self.model = self.model.cuda()
+        self.model = self.model.to('cpu')
 
 
     def update_surrogate_model(self ): 

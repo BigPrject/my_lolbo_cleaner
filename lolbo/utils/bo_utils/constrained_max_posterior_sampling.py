@@ -127,7 +127,7 @@ class MaxPosteriorSampling(SamplingStrategy):
                 min_violators = X[min_idxs, :] # (bsz,d)  ie 10 x 256 
                 return min_violators 
             # replace violators with -infinty so it will never choose them! 
-            samples = torch.where(valid_samples, samples, -torch.inf*torch.ones(samples.shape).cuda()) # bsz x N x 1  ie torch.Size([8, 5000, 1])
+            samples = torch.where(valid_samples, samples, -torch.inf*torch.ones(samples.shape).to('cpu')) # bsz x N x 1  ie torch.Size([8, 5000, 1])
         
         
         if isinstance(self.objective, ScalarizedObjective):

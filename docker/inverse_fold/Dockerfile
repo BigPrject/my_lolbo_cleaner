@@ -30,9 +30,25 @@ RUN conda install -y -c conda-forge biopandas
 RUN pip install --upgrade pandas
 
 RUN pip install transformers
+RUN apt-get update && apt-get install -y gcc-9 g++-9 && update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 60 && update-alternatives --install /usr/bin/g++ g# Install system dependencies
+RUN apt-get update && apt-get install -y vim unzip gcc-9 g++-9 && \
+    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 60 && \
+    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-9 60
 
-RUN pip install torch-scatter
-RUN pip install torch-sparse
+# Install packages with Conda
+RUN conda install -y -c pyg pyg && \
+    conda install -y -c conda-forge biopython biopandas
+
+# Install packages with Pip
+RUN pip install markupsafe==2.0.1 && \
+    pip install --upgrade pandas && \
+    pip install transformers && \
+    pip install torch-scatter -f https://data.pyg.org/whl/torch-2.0.0+cpu.html && \
+    pip install torch-cluster && \
+    pip install torch-spline-conv && \
+    pip install torch-geometric && \
+    pip install biotite++ /usr/bin/g++-9 60
+RUN pip install torch-scatter -f https://data.pyg.org/whl/torch-2.0.0+cpu.htmlRUN pip install torch-sparse
 RUN pip install torch-cluster
 RUN pip install torch-spline-conv
 RUN pip install torch-geometric

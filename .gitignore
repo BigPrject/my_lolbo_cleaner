@@ -8,4 +8,6 @@ finetuned_vae_ckpts/
 finetuned_vae_ckpts/*
 optimization_all_collected_data/
 optimization_all_collected_data/*
+robot
+robot_scripts
 
