@@ -3,11 +3,13 @@ Note: All code assumes we seek to maximize f(x)
 If you want to instead MINIMIZE the objecitve, multiple scores by -1 in 
 your query_black_box() method 
 ''' 
-from lolbo import MoleculeObjective
+
 import sys 
 sys.path.append("../")
 import numpy as np 
 import os 
+from lolbo.utils.mol_utils.mol_utils import smiles_to_desired_scores
+
 try:
     # dependencies for inverse fold oracle 
     from inverse_folding_oracle.aa_seq_to_tm_score import aa_seq_to_tm_score
@@ -48,7 +50,21 @@ class ObjectiveFunction:
         raise NotImplementedError("Must implement method query_black_box() for the black box objective")
 
 
-
+class MoleculeObjective(ObjectiveFunction):
+    """The objective function for the molecule tasks assuming smiles etc"""
+    
+    def __init__(self,task_arg):
+        
+        super().__init__()
+        self.task_arg = task_arg
+        
+    def query_black_box(self,x_list):
+        scores_list = []
+        for x in x_list:
+            # passing a list of 1 x
+            scores_list.append(smiles_to_desired_scores([x], self.task_arg).item())
+        
+        return scores_list
 
 class ExampleObjective(ObjectiveFunction):
     ''' Example objective funciton length of the input space items

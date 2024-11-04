@@ -1,11 +1,12 @@
 import numpy as np
 import torch 
 import selfies as sf 
-from lolbo.utils.mol_utils.mol_utils import smiles_to_desired_scores
 from lolbo.utils.mol_utils.selfies_vae.model_positional_unbounded import SELFIESDataset, InfoTransformerVAE
 from lolbo.utils.mol_utils.selfies_vae.data import collate_fn
 from lolbo.latent_space_objective import LatentSpaceObjective
 from lolbo.utils.mol_utils.mol_utils import GUACAMOL_TASK_NAMES
+from your_tasks.your_objective_functions import OBJECTIVE_FUNCTIONS_DICT
+
 
 import pkg_resources
 # make sure molecule software versions are correct: 
@@ -14,14 +15,14 @@ assert pkg_resources.get_distribution("rdkit-pypi").version == '2022.3.1'
 assert pkg_resources.get_distribution("molsets").version == '0.3.1'
 
 
-class MoleculeObjective(LatentSpaceObjective):
-    '''MoleculeObjective class supports all molecule optimization
+class SelfiesObjective(LatentSpaceObjective):
+    '''Selfies class supports all molecule optimization
         tasks and uses the SELFIES VAE by default '''
 
     def __init__(
         self,
-        task_id='pdop',
-        task_specific_args=[],
+        task_id='guacamol',
+        task_specific_args='pdop',
         path_to_vae_statedict="../lolbo/utils/mol_utils/selfies_vae/state_dict/SELFIES-VAE-state-dict.pt",
         xs_to_scores_dict={},
         max_string_length=1024,
@@ -32,14 +33,18 @@ class MoleculeObjective(LatentSpaceObjective):
         constraint_types=[], # list of strings giving correspoding type for each threshold ("min" or "max" allowed)
         dim = 256
     ):
-        assert task_id in GUACAMOL_TASK_NAMES + ["logp"]
+        # we only want guacamol tasks right now
+        assert task_specific_args in GUACAMOL_TASK_NAMES + ["logp"]
+        print("task_specific_args:", task_specific_args)
+        self.task_specific_args = task_specific_args
+        self.objective_function = OBJECTIVE_FUNCTIONS_DICT[task_id](self.task_specific_args)
+
 
         self.dim                    = 256 # SELFIES VAE DEFAULT LATENT SPACE DIM
         self.path_to_vae_statedict  = path_to_vae_statedict # path to trained vae stat dict
         self.max_string_length      = max_string_length # max string length that VAE can generate
         self.smiles_to_selfies      = smiles_to_selfies # dict to hold computed mappings form smiles to selfies strings
         self.constraint_functions       = []
-        self.task_specific_args = task_specific_args
         super().__init__(
             num_calls=num_calls,
             xs_to_scores_dict=xs_to_scores_dict,
@@ -76,14 +81,14 @@ class MoleculeObjective(LatentSpaceObjective):
 
     def query_oracle(self, x):
         ''' Input: 
-                a single input space item x
+                a  list  input space item x
             Output:
                 method queries the oracle and returns 
                 the corresponding score y,
                 or np.nan in the case that x is an invalid input
         '''
-        # method assumes x is a single smiles string
-        score = smiles_to_desired_scores(x[0], self.task_id)
+        # method assums x is a list already
+        score = self.objective_function(x)
 
         return score
 

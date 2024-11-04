@@ -7,11 +7,11 @@ import math
 import pandas as pd 
 import torch 
 import math 
-from lolbo.MoleculeObjective import MoleculeObjective
+from lolbo.SelfiesObjective import SelfiesObjective
 from lolbo.utils.mol_utils.load_data import load_molecule_train_data, compute_train_zs
 
 
-class GuacamoleOptimize(Optimize):
+class SelfiesOptimization(Optimize):
     """
     Run LOLBO Optimization with GuacaMole 
     Args:
@@ -26,7 +26,7 @@ class GuacamoleOptimize(Optimize):
         self,
         path_to_vae_statedict: str="../zeta/lolbo/utils/mol_utils/selfies_vae/state_dict/SELFIES-VAE-state-dict.pt",
         dim: int=1024,
-        task_specific_args: list=[], # list of additional args to be passed into objective funcion 
+        task_specific_args: str='logp', #  of additional arg to be passed into objective funcion 
         max_string_length: int=1024,
         constraint_function_ids: list=[], # list of strings identifying the black box constraint function to use
         constraint_thresholds: list=[], # list of corresponding threshold values (floats)
@@ -59,9 +59,9 @@ class GuacamoleOptimize(Optimize):
 
     def initialize_objective(self):
         # initialize objective 
-        self.objective = MoleculeObjective(
+        self.objective = SelfiesObjective(
             task_id=self.task_id, # string id for your task
-            task_specific_args=self.task_specific_args, # list of additional args to be passed into objective funcion 
+            task_specific_args=self.task_specific_args, # of additional args to be passed into objective funcion 
             path_to_vae_statedict=self.path_to_vae_statedict, # state dict for VAE to load in
             max_string_length=self.max_string_length, # max string length that VAE can generate
             dim=self.dim, # dimension of latent search space
@@ -92,7 +92,8 @@ class GuacamoleOptimize(Optimize):
             '''
         assert self.num_initialization_points <= 20_000 
         smiles, selfies, zs, ys = load_molecule_train_data(
-            task_id=self.task_id,
+            # the specicic arg
+            task_id=self.task_specific_args,
             num_initialization_points=self.num_initialization_points,
             path_to_vae_statedict=self.path_to_vae_statedict
         )
@@ -111,4 +112,4 @@ class GuacamoleOptimize(Optimize):
 
 
 if __name__ == "__main__":
-    fire.Fire(GuacamoleOptimize)
+    fire.Fire(SelfiesOptimization)
