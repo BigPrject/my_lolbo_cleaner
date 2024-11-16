@@ -212,6 +212,7 @@ class Optimize(object):
                 if not self.recenter_only:
                     self.lolbo_state.update_models_e2e()
                 self.lolbo_state.recenter()
+                # Track this 
                 if self.recenter_only:
                     self.lolbo_state.update_surrogate_model()
             else: # otherwise, just update the surrogate model on data

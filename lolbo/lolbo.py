@@ -35,7 +35,12 @@ class LOLBOState:
         iterations=0,
         accumulated_z_next = [],
         accumulated_mean = [],
-        accumulated_variance = []
+        accumulated_variance = [],
+        accumulated_length = [],
+        accumulated_y_next = [],
+        recenter_history = [],
+        accumulated_recenter_history = []
+    
         
     ):
         self.objective          = objective         # objective with vae for particular task
@@ -55,6 +60,10 @@ class LOLBOState:
         self.accumulated_z_next = accumulated_z_next
         self.accumulated_mean = accumulated_mean
         self.accumulated_variance = accumulated_variance
+        self.accumulated_length =  accumulated_length
+        self.accumulated_y_next = accumulated_y_next
+        self.recenter_history = recenter_history
+        self.accumulated_recenter_history = accumulated_recenter_history
 
         assert acq_func in ["ei", "ts"]
         if minimize:
@@ -342,8 +351,10 @@ class LOLBOState:
             VAE to find new locations in the
             new fine-tuned latent space
         '''
+
         self.objective.vae.eval()
         self.model.train()
+        # which iteration did it recenter on. 
 
         optimize_list = [
             {'params': self.model.parameters(), 'lr': self.learning_rte} 
@@ -422,12 +433,7 @@ class LOLBOState:
             acqf=self.acq_func,
             constraint_model_list=constraint_model_list,
         )
-        self.accumulate_gp_predictions(z_next, mean, variance)
-        self.ei_seen = ei if ei is not None else -1e9
-        self.iterations+=1
-        if self.iterations % 10 == 0:
-            self.save_gp_predictions_iteration()
-            
+                  
         # 2. Evaluate the batch of candidates by calling oracle
         with torch.no_grad():
             out_dict = self.objective(z_next)
@@ -437,6 +443,13 @@ class LOLBOState:
             c_next = out_dict['constr_vals']  
             if self.minimize:
                 y_next = y_next * -1
+                 
+        # accumalte gp's, why does the shappe become heterogenous?    
+        self.accumulate_gp_predictions(z_next, mean, variance,self.tr_state,y_next)
+        self.ei_seen = ei if ei is not None else -1e9
+        self.iterations+=1
+        if self.iterations % 10 == 0:
+            self.save_gp_predictions_iteration()
         # 3. Add new evaluated points to dataset (update_next)
         if len(y_next) != 0:
             y_next = torch.from_numpy(y_next).float()
@@ -453,28 +466,64 @@ class LOLBOState:
                 print("GOT NO VALID Y_NEXT TO UPDATE DATA, RERUNNING ACQUISITOIN...")
     
     
-    def accumulate_gp_predictions(self, z_next, mean, variance):
+    def accumulate_gp_predictions(self, z_next, mean, variance,tr_state,y_next):
         #helper function to append 
-        self.accumulated_z_next.append(z_next.cpu().numpy())
+        # change when I get gpu 
+        # self.accumulated_z_next.append(z_next.cpu().numpy()) -- old
+        # self.accumulated_y_next.append(y_next) # already numpy object
+        z_next_np = z_next.cpu().numpy()
+        if z_next_np.shape[0] < 10:
+            # Pad to reach (10, 256) shape
+            padded_z_next = np.pad(z_next_np, ((0, 10 - z_next_np.shape[0]), (0, 0)), mode='constant', constant_values=-1)
+            self.accumulated_z_next.append(padded_z_next)
+        else:
+           self.accumulated_z_next.append(z_next_np)
+
+        if y_next.shape[0] < 10:
+            padded_y_next = np.pad(y_next, ((0, 10 - y_next.shape[0]), (0, 0)), mode='constant', constant_values=-1)
+            self.accumulated_y_next.append(padded_y_next)
+        else:
+            self.accumulated_y_next.append(y_next)
+            
+
         self.accumulated_mean.append(mean.cpu().numpy())
         self.accumulated_variance.append(variance.cpu().numpy())
-                    
+        self.accumulated_length.append([tr_state.length] * len(mean))
+        is_recenter = [1 if self.iterations in self.recenter_history else 0] * len(mean)
+        self.accumulated_recenter_history.append(is_recenter)
+        print("Shapes of arrays to save:")
+        print("mean:", np.array(self.accumulated_mean).shape)
+        print("variance:", np.array(self.accumulated_variance).shape)
+        print("length:", np.array(self.accumulated_length).shape)
+        print("recenter_history:", np.array(self.recenter_history).shape)
+        arr = self.accumulated_z_next[-1]
+        print(f"Last entry in z_next: shape = {np.array(arr).shape}, dtype = {np.array(arr).dtype}")
+        print("z_next:", np.array(self.accumulated_z_next).shape)
+        print("y_next:", np.array(self.accumulated_y_next).shape)
+
+    
     def save_gp_predictions_iteration(self):
         # directory for saving data
-        folder = "gp_predictions"
+        folder = f"gp_predictions/"
         if not os.path.exists(folder):
             os.makedirs(folder)
             
         # Save file with the current iteration number
         file_path = f"{folder}/gp_predictions_iter_{self.iterations // 10}.npz"
+
         np.savez(
             file_path,
             z_next=self.accumulated_z_next,
+            y_next = self.accumulated_y_next,
             mean=self.accumulated_mean,
-            variance=self.accumulated_variance
+            variance=self.accumulated_variance,
+            length = self.accumulated_length,
+            recenter_history= self.accumulated_recenter_history
         )
         print(f"Saved accumulated data to {file_path}")
         self.accumulated_mean = []
         self.accumulated_variance = []
         self.accumulated_z_next = []
-
+        self.accumulated_y_next = []
+        self.accumulated_length = []
+        self.accumulated_recenter_history = []
