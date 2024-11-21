@@ -10,4 +10,6 @@ optimization_all_collected_data/
 optimization_all_collected_data/*
 robot
 robot_scripts
-
+saved_gp/
+lolbo_scripts/gp_predictions/*
+zeta/

@@ -12,7 +12,7 @@ from botorch.posteriors.gpytorch import GPyTorchPosterior
 
 class GPModel(ApproximateGP):
     def __init__(self, inducing_points, likelihood):
-        variational_distribution = CholeskyVariationalDistribution(inducing_points.size(0) )
+        variational_distribution = CholeskyVariationalDistribution(inducing_points.size(0))
         variational_strategy = VariationalStrategy(
             self,
             inducing_points,

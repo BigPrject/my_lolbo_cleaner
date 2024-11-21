@@ -469,29 +469,17 @@ class LOLBOState:
     def accumulate_gp_predictions(self, z_next, mean, variance,tr_state,y_next):
         #helper function to append 
         # change when I get gpu 
-        # self.accumulated_z_next.append(z_next.cpu().numpy()) -- old
-        # self.accumulated_y_next.append(y_next) # already numpy object
-        z_next_np = z_next.cpu().numpy()
-        if z_next_np.shape[0] < 10:
-            # Pad to reach (10, 256) shape
-            padded_z_next = np.pad(z_next_np, ((0, 10 - z_next_np.shape[0]), (0, 0)), mode='constant', constant_values=-1)
-            self.accumulated_z_next.append(padded_z_next)
-        else:
-           self.accumulated_z_next.append(z_next_np)
-
-        if y_next.shape[0] < 10:
-            padded_y_next = np.pad(y_next, ((0, 10 - y_next.shape[0]), (0, 0)), mode='constant', constant_values=-1)
-            self.accumulated_y_next.append(padded_y_next)
-        else:
-            self.accumulated_y_next.append(y_next)
-            
+        self.accumulated_z_next.append(z_next.cpu().numpy())
+        self.accumulated_y_next.append(y_next) # already numpy object
 
         self.accumulated_mean.append(mean.cpu().numpy())
         self.accumulated_variance.append(variance.cpu().numpy())
         self.accumulated_length.append([tr_state.length] * len(mean))
-        is_recenter = [1 if self.iterations in self.recenter_history else 0] * len(mean)
-        self.accumulated_recenter_history.append(is_recenter)
-        print("Shapes of arrays to save:")
+        #is_recenter = [1 if self.iterations in self.recenter_history else 0] * len(mean)
+        #self.accumulated_recenter_history.append(is_recenter)
+        
+        """
+                print("Shapes of arrays to save:")
         print("mean:", np.array(self.accumulated_mean).shape)
         print("variance:", np.array(self.accumulated_variance).shape)
         print("length:", np.array(self.accumulated_length).shape)
@@ -500,11 +488,13 @@ class LOLBOState:
         print(f"Last entry in z_next: shape = {np.array(arr).shape}, dtype = {np.array(arr).dtype}")
         print("z_next:", np.array(self.accumulated_z_next).shape)
         print("y_next:", np.array(self.accumulated_y_next).shape)
+        """
+
 
     
     def save_gp_predictions_iteration(self):
         # directory for saving data
-        folder = f"gp_predictions/"
+        folder = f"gp_predictions/{self.objective.task_specific_args}"
         if not os.path.exists(folder):
             os.makedirs(folder)
             
@@ -512,14 +502,14 @@ class LOLBOState:
         file_path = f"{folder}/gp_predictions_iter_{self.iterations // 10}.npz"
 
         np.savez(
-            file_path,
-            z_next=self.accumulated_z_next,
-            y_next = self.accumulated_y_next,
-            mean=self.accumulated_mean,
-            variance=self.accumulated_variance,
-            length = self.accumulated_length,
-            recenter_history= self.accumulated_recenter_history
-        )
+                file_path,
+                z_next=np.array(self.accumulated_z_next, dtype=object),
+                y_next=np.array(self.accumulated_y_next, dtype=object),
+                mean=np.array(self.accumulated_mean),
+                variance=np.array(self.accumulated_variance),
+                length=np.array(self.accumulated_length),
+                #removed recenter
+            )
         print(f"Saved accumulated data to {file_path}")
         self.accumulated_mean = []
         self.accumulated_variance = []

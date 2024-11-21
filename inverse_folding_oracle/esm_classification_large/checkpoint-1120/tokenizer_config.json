@@ -1,3 +1,6 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:83aa56b7d9c09afb0e90d3e552b3a3c970bf55d4774d9d67a026267c8660a7e0
-size 327
+{
+  "model_max_length": 1000000000000000019884624838656,
+  "name_or_path": "facebook/esm2_t30_150M_UR50D",
+  "special_tokens_map_file": "/home/yimengz/.cache/huggingface/hub/models--facebook--esm2_t30_150M_UR50D/snapshots/a695f6045e2e32885fa60af20c13cb35398ce30c/special_tokens_map.json",
+  "tokenizer_class": "EsmTokenizer"
+}
