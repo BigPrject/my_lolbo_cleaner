@@ -6,3 +6,5 @@
 *.params filter=lfs diff=lfs merge=lfs -text
 *.state filter=lfs diff=lfs merge=lfs -text
 .DS_Store filter=lfs diff=lfs merge=lfs -text
+*.zip filter=lfs diff=lfs merge=lfs -text
+*.pt filter=lfs diff=lfs merge=lfs -text
