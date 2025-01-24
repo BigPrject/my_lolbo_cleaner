@@ -23,7 +23,7 @@ class SelfiesObjective(LatentSpaceObjective):
         self,
         task_id='guacamol',
         task_specific_args='pdop',
-        path_to_vae_statedict="../lolbo/utils/mol_utils/selfies_vae/state_dict/SELFIES-VAE-state-dict.pt",
+        path_to_vae_statedict="/users/8/joh22439/home/my_lolbo_cleaner/lolbo/utils/mol_utils/selfies_vae/state_dict/SELFIES-VAE-state-dict.pt",
         xs_to_scores_dict={},
         max_string_length=1024,
         num_calls=0,
@@ -61,9 +61,9 @@ class SelfiesObjective(LatentSpaceObjective):
         '''
         if type(z) is np.ndarray: 
             z = torch.from_numpy(z).float()
-        z = z.to('cpu')
+        z = z.cuda()
         self.vae = self.vae.eval()
-        self.vae = self.vae.to('cpu') 
+        self.vae = self.vae.cuda()
         # sample molecular string form VAE decoder
         sample = self.vae.sample(z=z.reshape(-1, 2, 128))
         # grab decoded selfies strings
@@ -101,9 +101,9 @@ class SelfiesObjective(LatentSpaceObjective):
         self.vae = InfoTransformerVAE(dataset=self.dataobj)
         # load in state dict of trained model:
         if self.path_to_vae_statedict:
-            state_dict = torch.load(self.path_to_vae_statedict, map_location=torch.device('cpu'))
+            state_dict = torch.load(self.path_to_vae_statedict, map_location=torch.device('cuda'))
             self.vae.load_state_dict(state_dict, strict=True)
-        self.vae = self.vae.to('cpu')
+        self.vae = self.vae.cuda()
         self.vae = self.vae.eval()
         # set max string length that VAE can generate
         self.vae.max_string_length = self.max_string_length
@@ -132,7 +132,7 @@ class SelfiesObjective(LatentSpaceObjective):
             encoded_selfie = self.dataobj.encode(tokenized_selfie).unsqueeze(0)
             X_list.append(encoded_selfie)
         X = collate_fn(X_list)
-        dict = self.vae(X.to('cpu'))
+        dict = self.vae(X.to('cuda'))
         vae_loss, z = dict['loss'], dict['z']
         z = z.reshape(-1,self.dim)
 
@@ -141,7 +141,7 @@ class SelfiesObjective(LatentSpaceObjective):
 
 if __name__ == "__main__":
     # testing molecule objective
-    obj1 = MoleculeObjective(task_id='pdop' ) 
+    obj1 = SelfiesObjective(task_id='pdop' ) # change to guacamol
     print(obj1.num_calls)
     dict1 = obj1(torch.randn(10,256))
     print(dict1['scores'], obj1.num_calls)

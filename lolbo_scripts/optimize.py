@@ -47,6 +47,7 @@ class Optimize(object):
     def __init__(
         self,
         task_id: str,
+        task_specific_args: str,
         seed: int=None,
         track_with_wandb: bool=False,
         wandb_entity: str="",
@@ -79,6 +80,7 @@ class Optimize(object):
         self.track_with_wandb = track_with_wandb
         self.wandb_entity = wandb_entity 
         self.task_id = task_id
+        self.task_specific_args = task_specific_args
         self.max_n_oracle_calls = max_n_oracle_calls
         self.verbose = verbose
         self.num_initialization_points = num_initialization_points
@@ -88,7 +90,7 @@ class Optimize(object):
         if wandb_project_name: # if project name specified
             self.wandb_project_name = wandb_project_name
         else: # otherwise use defualt
-            self.wandb_project_name = f"optimimze-{self.task_id}"
+            self.wandb_project_name = f"optimimze-{self.task_id}-{self.task_specific_args}"
         if not WANDB_IMPORTED_SUCCESSFULLY:
             assert not self.track_with_wandb, "Failed to import wandb, to track with wandb, try pip install wandb"
         if self.track_with_wandb:
@@ -237,7 +239,7 @@ class Optimize(object):
         if self.verbose:
             print("\nOptimization Run Finished, Final Results:")
             self.print_progress_update()
-
+        self.move_file()
         # log top k scores and xs in table
         self.final_save = True 
         self.log_topk_table_wandb()
@@ -322,7 +324,17 @@ class Optimize(object):
 
         return self
 
-
+    def move_file(self):
+        if self.track_with_wandb:
+            #guaranted for folder to exist
+            source_folder = f"gp_predictions/{self.lolbo_state.objective.task_specific_args}"
+            new_folder = f"done/{self.wandb_run_name}"
+            
+            os.rename(source_folder,new_folder)
+            print(f"Moved saved data from {source_folder} to {new_folder}")
+        else:
+            print("Not tracking with wandb, remember to do something here")
+            
     def done(self):
         return None
 

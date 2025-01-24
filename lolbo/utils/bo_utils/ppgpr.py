@@ -39,8 +39,7 @@ class GPModel(ApproximateGP):
             dist = self.likelihood(self(X)) 
 
             return GPyTorchPosterior(mvn=dist)
-
-
+               
 # gp model with deep kernel
 class GPModelDKL(ApproximateGP):
     def __init__(self, inducing_points, likelihood, hidden_dims=(256, 256) ):

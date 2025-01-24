@@ -24,7 +24,7 @@ class SelfiesOptimization(Optimize):
     """
     def __init__(
         self,
-        path_to_vae_statedict: str="../zeta/lolbo/utils/mol_utils/selfies_vae/state_dict/SELFIES-VAE-state-dict.pt",
+        path_to_vae_statedict: str="/users/8/joh22439/home/my_lolbo_cleaner/lolbo/utils/mol_utils/selfies_vae/state_dict/SELFIES-VAE-state-dict.pt",
         dim: int=1024,
         task_specific_args: str='logp', #  of additional arg to be passed into objective funcion 
         max_string_length: int=1024,
@@ -50,7 +50,7 @@ class SelfiesOptimization(Optimize):
         self.constraint_thresholds = constraint_thresholds # list of corresponding threshold values (floats)
         self.constraint_types = constraint_types # list of strings giving correspoding type for each threshold ("min" or "max" allowed)
         
-        super().__init__(**kwargs) 
+        super().__init__(**kwargs,task_specific_args=self.task_specific_args) 
 
         # add args to method args dict to be logged by wandb 
         self.method_args['opt1'] = locals()

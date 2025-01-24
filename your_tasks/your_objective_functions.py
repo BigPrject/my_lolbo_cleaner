@@ -66,6 +66,7 @@ class MoleculeObjective(ObjectiveFunction):
         
         return scores_list
 
+
 class ExampleObjective(ObjectiveFunction):
     ''' Example objective funciton length of the input space items
         This is just a dummy example where the objective is the 

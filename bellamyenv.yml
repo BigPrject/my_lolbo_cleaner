@@ -1,4 +1,4 @@
-name: base
+name: bell_env
 channels:
   - pytorch
   - nvidia
@@ -268,4 +268,3 @@ dependencies:
       - tzdata==2024.2
       - wandb==0.18.5
       - yarl==1.16.0
-prefix: /opt/conda

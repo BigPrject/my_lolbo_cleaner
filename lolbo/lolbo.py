@@ -1,7 +1,7 @@
 import torch
 import gpytorch
 import math
-from gpytorch.mlls import PredictiveLogLikelihood 
+from gpytorch.mlls import PredictiveLogLikelihood, VariationalELBO
 import sys 
 sys.path.append("../")
 from lolbo.utils.bo_utils.turbo import TurboState, update_state, generate_batch
@@ -10,7 +10,7 @@ from lolbo.utils.utils import (
     update_constraint_surr_models,
     update_models_end_to_end_with_constraints,
 )
-from lolbo.utils.bo_utils.ppgpr import GPModelDKL
+from lolbo.utils.bo_utils.ppgpr import GPModelDKL,GPModelDKLWithMoE
 import numpy as np
 import os
 
@@ -38,8 +38,6 @@ class LOLBOState:
         accumulated_variance = [],
         accumulated_length = [],
         accumulated_y_next = [],
-        recenter_history = [],
-        accumulated_recenter_history = []
     
         
     ):
@@ -62,8 +60,6 @@ class LOLBOState:
         self.accumulated_variance = accumulated_variance
         self.accumulated_length =  accumulated_length
         self.accumulated_y_next = accumulated_y_next
-        self.recenter_history = recenter_history
-        self.accumulated_recenter_history = accumulated_recenter_history
 
         assert acq_func in ["ei", "ts"]
         if minimize:
@@ -172,24 +168,24 @@ class LOLBOState:
         self.c_models = []
         self.c_mlls = []
         for i in range(self.train_c.shape[1]):
-            likelihood = gpytorch.likelihoods.GaussianLikelihood().to('cpu')
+            likelihood = gpytorch.likelihoods.GaussianLikelihood().cuda() 
             n_pts = min(self.train_z.shape[0], 1024)
-            c_model = GPModelDKL(self.train_z[:n_pts, :].to('cpu'), likelihood=likelihood ).to('cpu')
+            c_model = GPModelDKL(self.train_z[:n_pts, :].cuda(), likelihood=likelihood ).cuda()
             c_mll = PredictiveLogLikelihood(c_model.likelihood, c_model, num_data=self.train_z.size(-2))
             c_model = c_model.eval() 
-            # c_model = self.model.to('cpu')
+            c_model = self.model.cuda() # changed this lets see what happens
             self.c_models.append(c_model)
             self.c_mlls.append(c_mll)
-        return self 
+        return self  
 
 
     def initialize_surrogate_model(self):
-        likelihood = gpytorch.likelihoods.GaussianLikelihood().to('cpu') 
+        likelihood = gpytorch.likelihoods.GaussianLikelihood().cuda() 
         n_pts = min(self.train_z.shape[0], 1024)
-        self.model = GPModelDKL(self.train_z[:n_pts, :].to('cpu'), likelihood=likelihood ).to('cpu')
+        self.model = GPModelDKL(self.train_z[:n_pts, :].cuda(), likelihood=likelihood ).cuda()
         self.mll = PredictiveLogLikelihood(self.model.likelihood, self.model, num_data=self.train_z.size(-2))
         self.model = self.model.eval() 
-        self.model = self.model.to('cpu')
+        self.model = self.model.cuda()
 
         if self.train_c is not None:
             self.initialize_constraint_surrogates()
@@ -239,7 +235,7 @@ class LOLBOState:
                     min_idx = self.top_k_scores.index(min_score)
                     self.top_k_scores[min_idx] = score.item()
                     self.top_k_xs[min_idx] = x_next_[i]
-                    self.top_k_zs[min_idx] = z_next_[i].unsqueeze(-2) # .to('cpu')
+                    self.top_k_zs[min_idx] = z_next_[i].unsqueeze(-2) # .to('cuda')
                     if self.train_c is not None: # if constrained, update best constraints too
                         self.top_k_cs[min_idx] = c_next_[i].unsqueeze(-2)
                 #if this is the first valid example we've found, OR if we imporve 
@@ -282,9 +278,10 @@ class LOLBOState:
                 train_c = self.train_c[-self.bsz:]
             else:
                 train_c = None 
-          
+        print("Model parameters are on (update surr model):", next(self.model.parameters()).device)
+        
         self.model = update_surr_model(
-            self.model,
+            self.model.cuda(),
             self.mll,
             self.learning_rte,
             train_z,
@@ -328,12 +325,13 @@ class LOLBOState:
             else:
                 train_c = new_cs 
             # train_c = torch.tensor(new_cs + self.top_k_cs).float() 
-
+            
+        print("Model parameters are on(e2e with constraints):", next(self.model.parameters()).device)
         self.objective, self.model = update_models_end_to_end_with_constraints(
             train_x=train_x,
             train_y_scores=train_y,
             objective=self.objective,
-            model=self.model,
+            model=self.model.cuda(),
             mll=self.mll,
             learning_rte=self.learning_rte,
             num_update_epochs=self.num_update_epochs,
@@ -388,11 +386,11 @@ class LOLBOState:
                     if self.minimize:
                         scores_arr = scores_arr * -1
                     pred = self.model(valid_zs)
-                    loss = -self.mll(pred, scores_arr.to('cpu'))
+                    loss = -self.mll(pred, scores_arr.cuda())
                     if self.train_c is not None: 
                         for ix, c_model in enumerate(self.c_models):
-                            pred2 = c_model(valid_zs.to('cpu'))
-                            loss += -self.c_mlls[ix](pred2, constraints_tensor[:,ix].to('cpu'))
+                            pred2 = c_model(valid_zs.cuda())
+                            loss += -self.c_mlls[ix](pred2, constraints_tensor[:,ix].cuda())
                     optimizer1.zero_grad()
                     loss.backward() 
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
@@ -444,7 +442,8 @@ class LOLBOState:
             if self.minimize:
                 y_next = y_next * -1
                  
-        # accumalte gp's, why does the shappe become heterogenous?    
+        # accumalte gp's, why does the shappe become heterogenous? 
+        # fixing with deep copy's   
         self.accumulate_gp_predictions(z_next, mean, variance,self.tr_state,y_next)
         self.ei_seen = ei if ei is not None else -1e9
         self.iterations+=1
@@ -469,7 +468,10 @@ class LOLBOState:
     def accumulate_gp_predictions(self, z_next, mean, variance,tr_state,y_next):
         #helper function to append 
         # change when I get gpu 
-        self.accumulated_z_next.append(z_next.cpu().numpy())
+        
+        z_next, y_next = self.pre_process(z_next.cpu().numpy().copy(),y_next.copy())
+        
+        self.accumulated_z_next.append(z_next)
         self.accumulated_y_next.append(y_next) # already numpy object
 
         self.accumulated_mean.append(mean.cpu().numpy())
@@ -478,20 +480,32 @@ class LOLBOState:
         #is_recenter = [1 if self.iterations in self.recenter_history else 0] * len(mean)
         #self.accumulated_recenter_history.append(is_recenter)
         
-        """
-                print("Shapes of arrays to save:")
-        print("mean:", np.array(self.accumulated_mean).shape)
-        print("variance:", np.array(self.accumulated_variance).shape)
-        print("length:", np.array(self.accumulated_length).shape)
-        print("recenter_history:", np.array(self.recenter_history).shape)
-        arr = self.accumulated_z_next[-1]
-        print(f"Last entry in z_next: shape = {np.array(arr).shape}, dtype = {np.array(arr).dtype}")
-        print("z_next:", np.array(self.accumulated_z_next).shape)
-        print("y_next:", np.array(self.accumulated_y_next).shape)
-        """
+
+    def pre_process(self,z_next,y_next):
+        
+        # target shapes should make the second dimeson more rigours 
+        target_z_shape = (self.bsz,256)
+        is_z_shape = target_z_shape == z_next.shape
+        target_y_shape = (self.bsz,)
+        is_y_shape = target_y_shape == y_next.shape
+        print(f"Target z_next shape: {target_z_shape}, incoming z_next shape: {z_next.shape}")
+        print(f"Target y_next shape: {target_y_shape}, incoming y_next shape: {y_next.shape}")
+        if not is_z_shape:
+            z_next = self.padding_helper(z_next,target_z_shape)
+        if not is_y_shape:
+            y_next = self.padding_helper(y_next,target_y_shape)
+        
+        
+        return z_next,y_next
+        
+    def padding_helper(self,arr,target_shape):
+        print(f"Padding arr with shape {arr.shape} to target shape {target_shape}")
+        padded = np.full(target_shape,np.nan,dtype=arr.dtype)
+        slices = tuple(slice(0, min(s, t)) for s, t in zip(arr.shape, target_shape))
+        padded[slices] = arr[slices]
+        return padded
 
 
-    
     def save_gp_predictions_iteration(self):
         # directory for saving data
         folder = f"gp_predictions/{self.objective.task_specific_args}"
@@ -500,11 +514,13 @@ class LOLBOState:
             
         # Save file with the current iteration number
         file_path = f"{folder}/gp_predictions_iter_{self.iterations // 10}.npz"
-
+        for idx, item in enumerate(self.accumulated_z_next):
+            print(f"Index: {idx}, Shape: {getattr(item, 'shape', 'N/A')}, Type: {type(item)}")
+            
         np.savez(
                 file_path,
-                z_next=np.array(self.accumulated_z_next, dtype=object),
-                y_next=np.array(self.accumulated_y_next, dtype=object),
+                z_next=np.array(self.accumulated_z_next),
+                y_next=np.array(self.accumulated_y_next),
                 mean=np.array(self.accumulated_mean),
                 variance=np.array(self.accumulated_variance),
                 length=np.array(self.accumulated_length),
