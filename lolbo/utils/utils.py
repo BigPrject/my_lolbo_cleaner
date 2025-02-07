@@ -63,7 +63,7 @@ def update_models_end_to_end_with_constraints(
     SELFIES VAE interface
     '''
     objective.vae.train()
-    model.train() 
+    model.train()
     
     optimize_list = [
         {'params': objective.vae.parameters()},

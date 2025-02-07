@@ -42,8 +42,8 @@ class GPModel(ApproximateGP):
                
 # gp model with deep kernel
 class GPModelDKL(ApproximateGP):
-    def __init__(self, inducing_points, likelihood, hidden_dims=(256, 256) ):
-        feature_extractor = DenseNetwork(
+    def __init__(self, inducing_points, likelihood, hidden_dims=(256, 256),spectral_norm=False):
+        feature_extractor = DenseNetwork(spectral_norm=spectral_norm,
             input_dim=inducing_points.size(-1),
             hidden_dims=hidden_dims).to(inducing_points.device
             )

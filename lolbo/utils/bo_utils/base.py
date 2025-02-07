@@ -10,7 +10,7 @@ class Swish(torch.nn.Module):
         x = x * torch.sigmoid(x)
         return x
 
-    
+
 class _LinearBlock(torch.nn.Sequential):
     def __init__(self, input_dim, output_dim, swish,spectral_norm=False):
         layers  = OrderedDict()
@@ -32,17 +32,17 @@ class _LinearBlock(torch.nn.Sequential):
 
 
 class DenseNetwork(torch.nn.Sequential):
-    def __init__(self, input_dim, hidden_dims, swish=True):
+    def __init__(self, input_dim, hidden_dims, swish=True,spectral_norm=False):
         if isinstance(hidden_dims, str):
             model, output_dim = image_classifier(hidden_dims)
             layers = model
             self.output_dim = output_dim
         else:
+            layers = OrderedDict()
             prev_dims = [input_dim] + list(hidden_dims[:-1])
-            layers = OrderedDict([
-                (f"hidden{i + 1}", _LinearBlock(prev_dim, current_dim, swish=swish,spectral_norm=False))
-                for i, (prev_dim, current_dim) in enumerate(zip(prev_dims, hidden_dims))
-            ])
+            for i,(prev_dim,current_dim) in enumerate(zip(prev_dims,hidden_dims)):
+                layers[f"hidden{i+1}"]  =  _LinearBlock(prev_dim, current_dim, swish=swish,spectral_norm=spectral_norm)
+                
             self.output_dim = hidden_dims[-1]
 
         super().__init__(layers)

@@ -10,7 +10,7 @@ from lolbo.utils.utils import (
     update_constraint_surr_models,
     update_models_end_to_end_with_constraints,
 )
-from lolbo.utils.bo_utils.ppgpr import GPModelDKL,GPModelDKLWithMoE
+from lolbo.utils.bo_utils.ppgpr import GPModelDKL
 import numpy as np
 import os
 
@@ -33,12 +33,13 @@ class LOLBOState:
         acq_func='ei',
         verbose=True,
         iterations=0,
+        spectral_norm=False,
         accumulated_z_next = [],
         accumulated_mean = [],
         accumulated_variance = [],
         accumulated_length = [],
         accumulated_y_next = [],
-    
+
         
     ):
         self.objective          = objective         # objective with vae for particular task
@@ -60,7 +61,7 @@ class LOLBOState:
         self.accumulated_variance = accumulated_variance
         self.accumulated_length =  accumulated_length
         self.accumulated_y_next = accumulated_y_next
-
+        self.spectral_norm = spectral_norm
         assert acq_func in ["ei", "ts"]
         if minimize:
             self.train_y = self.train_y * -1
@@ -170,7 +171,7 @@ class LOLBOState:
         for i in range(self.train_c.shape[1]):
             likelihood = gpytorch.likelihoods.GaussianLikelihood().cuda() 
             n_pts = min(self.train_z.shape[0], 1024)
-            c_model = GPModelDKL(self.train_z[:n_pts, :].cuda(), likelihood=likelihood ).cuda()
+            c_model = GPModelDKL(self.train_z[:n_pts, :].cuda(), likelihood=likelihood,spectral_norm=self.spectral_norm).cuda()
             c_mll = PredictiveLogLikelihood(c_model.likelihood, c_model, num_data=self.train_z.size(-2))
             c_model = c_model.eval() 
             c_model = self.model.cuda() # changed this lets see what happens
@@ -182,7 +183,7 @@ class LOLBOState:
     def initialize_surrogate_model(self):
         likelihood = gpytorch.likelihoods.GaussianLikelihood().cuda() 
         n_pts = min(self.train_z.shape[0], 1024)
-        self.model = GPModelDKL(self.train_z[:n_pts, :].cuda(), likelihood=likelihood ).cuda()
+        self.model = GPModelDKL(self.train_z[:n_pts, :].cuda(), likelihood=likelihood,spectral_norm=self.spectral_norm).cuda()
         self.mll = PredictiveLogLikelihood(self.model.likelihood, self.model, num_data=self.train_z.size(-2))
         self.model = self.model.eval() 
         self.model = self.model.cuda()

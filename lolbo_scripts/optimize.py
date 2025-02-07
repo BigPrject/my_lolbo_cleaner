@@ -43,6 +43,7 @@ class Optimize(object):
         update_e2e: If True, we update the models end to end (we run LOLBO). If False, we never update end to end (we run TuRBO)
         k: We keep track of and update end to end on the top k points found during optimization
         verbose: If True, we print out updates such as best score found, number of oracle calls made, etc. 
+        spectral-norm: Boolean variable for adding spectral norm on Feature Extractor
     """
     def __init__(
         self,
@@ -67,6 +68,7 @@ class Optimize(object):
         recenter_only=False,
         log_table_freq=10_000, 
         save_vae_ckpt=False,
+        spectral_norm :bool=False
     ):
         signal.signal(signal.SIGINT, self.handler)
         # add all local args to method args dict to be logged by wandb
@@ -86,6 +88,7 @@ class Optimize(object):
         self.num_initialization_points = num_initialization_points
         self.e2e_freq = e2e_freq
         self.update_e2e = update_e2e
+        self.spectral_norm = spectral_norm
         self.set_seed()
         if wandb_project_name: # if project name specified
             self.wandb_project_name = wandb_project_name
@@ -95,7 +98,10 @@ class Optimize(object):
             assert not self.track_with_wandb, "Failed to import wandb, to track with wandb, try pip install wandb"
         if self.track_with_wandb:
             assert self.wandb_entity, "Must specify a valid wandb account username (wandb_entity) to run with wandb tracking"
-
+        if self.spectral_norm:
+            print("spectral-norm is activated")
+        else:
+            print("spectral-norm is not activated")
         # initialize train data for particular task
         #   must define self.init_train_x, self.init_train_y, and self.init_train_z
         self.load_train_data()
@@ -125,7 +131,8 @@ class Optimize(object):
             learning_rte=learning_rte,
             bsz=bsz,
             acq_func=acq_func,
-            verbose=verbose
+            verbose=verbose,
+            spectral_norm = self.spectral_norm
         )
 
 
@@ -332,6 +339,7 @@ class Optimize(object):
             
             os.rename(source_folder,new_folder)
             print(f"Moved saved data from {source_folder} to {new_folder}")
+            
         else:
             print("Not tracking with wandb, remember to do something here")
             
