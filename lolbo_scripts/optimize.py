@@ -182,6 +182,7 @@ class Optimize(object):
                 project=self.wandb_project_name,
                 entity=self.wandb_entity,
                 config=config_dict,
+                tags=["spectral-norm" if self.spectral_norm else "non-spectral"]
             ) 
             self.wandb_run_name = wandb.run.name
         else:

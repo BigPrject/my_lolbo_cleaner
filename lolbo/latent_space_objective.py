@@ -74,7 +74,6 @@ class LatentSpaceObjective:
                 temp.append(score)
         scores = temp 
 
-
         # track number of oracle calls 
         #   nan scores happen when we pass an invalid
         #   molecular string and thus avoid calling the
@@ -88,7 +87,7 @@ class LatentSpaceObjective:
         decoded_xs = decoded_xs[bool_arr]
         scores_arr = scores_arr[bool_arr]
         valid_zs = z[bool_arr]
-
+        
         out_dict = {}
         out_dict['scores'] = scores_arr
         out_dict['valid_zs'] = valid_zs

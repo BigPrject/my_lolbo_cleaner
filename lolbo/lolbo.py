@@ -378,7 +378,7 @@ class LOLBOState:
                     batch_list = train_x[start_idx:stop_idx] 
                     z, _ = self.objective.vae_forward(batch_list)
                     out_dict = self.objective(z)
-                    scores_arr = out_dict['scores'] 
+                    scores_arr = out_dict['scores']
                     constraints_tensor = out_dict['constr_vals']
                     valid_zs = out_dict['valid_zs']
                     xs_list = out_dict['decoded_xs']

@@ -36,6 +36,7 @@ def update_models_end_to_end_unconstrained(
             surr_loss = -mll(pred, batch_y.cuda())
             # add losses and back prop 
             loss = vae_loss + surr_loss
+            print(loss)
             optimizer.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(objective.vae.parameters(), max_norm=1.0)
