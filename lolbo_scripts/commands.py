@@ -1,8 +1,8 @@
 import subprocess
 
 commands = [
-"python3 selfies_optimization.py --task_id guacamol --task_specific_args logp --spectral-norm False --save_vae_ckpt True --track_with_wandb True --wandb_entity joh22439-university-of-minnesota --num_initialization_points 1000  --max_n_oracle_calls 10000 --bsz 10 --dim 1024 --max_string_length 400 - run_lolbo - done",
-"python3 selfies_optimization.py --task_id guacamol --task_specific_args logp --spectral-norm True --save_vae_ckpt True --track_with_wandb True --wandb_entity joh22439-university-of-minnesota --num_initialization_points 1000  --max_n_oracle_calls 10000 --bsz 10 --dim 1024 --max_string_length 400 - run_lolbo - done"
+"python3 selfies_optimization.py --task_id guacamol --task_specific_args pdop --spectral-norm False  --track_with_wandb True --wandb_entity joh22439-university-of-minnesota --num_initialization_points 1000  --max_n_oracle_calls 10000 --bsz 10 --dim 1024 --max_string_length 400 - run_lolbo - done",
+"python3 selfies_optimization.py --task_id guacamol --task_specific_args pdop --spectral-norm True  --track_with_wandb True --wandb_entity joh22439-university-of-minnesota --num_initialization_points 1000  --max_n_oracle_calls 10000 --bsz 10 --dim 1024 --max_string_length 400 - run_lolbo - done"
 ]
 print("Running Tasks pll")
 

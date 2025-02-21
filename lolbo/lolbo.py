@@ -62,6 +62,7 @@ class LOLBOState:
         self.accumulated_length =  accumulated_length
         self.accumulated_y_next = accumulated_y_next
         self.spectral_norm = spectral_norm
+        self.loss_log = []
         assert acq_func in ["ei", "ts"]
         if minimize:
             self.train_y = self.train_y * -1
@@ -328,7 +329,7 @@ class LOLBOState:
             # train_c = torch.tensor(new_cs + self.top_k_cs).float() 
             
         print("Model parameters are on(e2e with constraints):", next(self.model.parameters()).device)
-        self.objective, self.model = update_models_end_to_end_with_constraints(
+        self.objective, self.model,loss = update_models_end_to_end_with_constraints(
             train_x=train_x,
             train_y_scores=train_y,
             objective=self.objective,
@@ -341,7 +342,7 @@ class LOLBOState:
             c_mlls=c_mlls,
         )
         self.tot_num_e2e_updates += 1
-
+        self.loss_log = loss
         return self
 
 

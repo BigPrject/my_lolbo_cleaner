@@ -203,8 +203,8 @@ class Optimize(object):
                 
             }
             dict_log[f"TR_length"] = self.lolbo_state.tr_state.length
-            self.tracker.log(dict_log) 
-
+            self.tracker.log(dict_log)
+             
         return self
 
     def run_lolbo(self): 
@@ -221,6 +221,10 @@ class Optimize(object):
             if (self.lolbo_state.progress_fails_since_last_e2e >= self.e2e_freq) and self.update_e2e:
                 if not self.recenter_only:
                     self.lolbo_state.update_models_e2e()
+                    print("Logging loss values")
+                    for total, vae_loss, gp_loss in self.lolbo_state.loss_log:
+                        self.tracker.log({"joint_loss": total,"vae loss":vae_loss,"surrogate loss":gp_loss})
+                    self.lolbo_state.loss_log = []
                 self.lolbo_state.recenter()
                 # Track this 
                 if self.recenter_only:

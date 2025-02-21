@@ -36,7 +36,8 @@ def update_models_end_to_end_unconstrained(
             surr_loss = -mll(pred, batch_y.cuda())
             # add losses and back prop 
             loss = vae_loss + surr_loss
-            print(loss)
+            print(f"unconstrained: loss{loss}, vae_loss{vae_loss}, gp_loss{surr_loss}")
+            
             optimizer.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(objective.vae.parameters(), max_norm=1.0)
@@ -80,6 +81,7 @@ def update_models_end_to_end_with_constraints(
     max_string_length = len(max(train_x, key=len))
     bsz = max(1, int(2560/max_string_length)) 
     num_batches = math.ceil(len(train_x) / bsz)
+    loss_log = []
     for _ in range(num_update_epochs):
         for batch_ix in range(num_batches):
             start_idx, stop_idx = batch_ix*bsz, (batch_ix+1)*bsz
@@ -101,6 +103,9 @@ def update_models_end_to_end_with_constraints(
 
             # add losses and back prop 
             loss = vae_loss + surr_loss
+            print(f"loss{loss}, vae_loss{vae_loss}, gp_loss{surr_loss}")
+            
+            loss_log.append((loss,vae_loss,surr_loss))
             optimizer.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(objective.vae.parameters(), max_norm=1.0)
@@ -111,7 +116,7 @@ def update_models_end_to_end_with_constraints(
         for c_model in c_models:
             c_model.eval() 
 
-    return objective, model
+    return objective, model,loss_log
 
 
 def update_surr_model(
