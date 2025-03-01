@@ -226,6 +226,7 @@ class Optimize(object):
                         self.tracker.log({"joint_loss": total,"vae loss":vae_loss,"surrogate loss":gp_loss})
                     self.lolbo_state.loss_log = []
                 self.lolbo_state.recenter()
+                self.tracker.log({f"did recenter": 1})
                 # Track this 
                 if self.recenter_only:
                     self.lolbo_state.update_surrogate_model()
@@ -339,7 +340,7 @@ class Optimize(object):
     def move_file(self):
         if self.track_with_wandb:
             #guaranted for folder to exist
-            source_folder = f"gp_predictions/{self.lolbo_state.objective.task_specific_args}"
+            source_folder = f"gp_predictions/{'spectral_norm' if self.spectral_norm else 'non_spectral'}/{self.objective.task_specific_args}"
             new_folder = f"done/{self.wandb_run_name}"
             
             os.rename(source_folder,new_folder)

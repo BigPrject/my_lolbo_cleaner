@@ -35,6 +35,9 @@ class DatasetKmers(Dataset): # asssuming train data
         vocab_path = f"../uniref_vae/{k}mer_vocab.csv"
         if data_path is None: 
             path_to_data = "../uniref_vae/uniref-small.csv"
+        else:
+            path_to_data = data_path
+            
         if (vocab is None) and os.path.exists(vocab_path):
                 vocab = pd.read_csv(vocab_path, header=None ).values.squeeze().tolist() 
 

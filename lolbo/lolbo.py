@@ -490,8 +490,6 @@ class LOLBOState:
         is_z_shape = target_z_shape == z_next.shape
         target_y_shape = (self.bsz,)
         is_y_shape = target_y_shape == y_next.shape
-        print(f"Target z_next shape: {target_z_shape}, incoming z_next shape: {z_next.shape}")
-        print(f"Target y_next shape: {target_y_shape}, incoming y_next shape: {y_next.shape}")
         if not is_z_shape:
             z_next = self.padding_helper(z_next,target_z_shape)
         if not is_y_shape:
@@ -501,7 +499,6 @@ class LOLBOState:
         return z_next,y_next
         
     def padding_helper(self,arr,target_shape):
-        print(f"Padding arr with shape {arr.shape} to target shape {target_shape}")
         padded = np.full(target_shape,np.nan,dtype=arr.dtype)
         slices = tuple(slice(0, min(s, t)) for s, t in zip(arr.shape, target_shape))
         padded[slices] = arr[slices]
@@ -510,14 +507,14 @@ class LOLBOState:
 
     def save_gp_predictions_iteration(self):
         # directory for saving data
-        folder = f"gp_predictions/{self.objective.task_specific_args}"
+        folder = f"gp_predictions/{'spectral_norm' if self.spectral_norm else 'non_spectral'}/{self.objective.task_specific_args}"
         if not os.path.exists(folder):
             os.makedirs(folder)
             
         # Save file with the current iteration number
         file_path = f"{folder}/gp_predictions_iter_{self.iterations // 10}.npz"
-        for idx, item in enumerate(self.accumulated_z_next):
-            print(f"Index: {idx}, Shape: {getattr(item, 'shape', 'N/A')}, Type: {type(item)}")
+        #for idx, item in enumerate(self.accumulated_z_next):
+        #print(f"Index: {idx}, Shape: {getattr(item, 'shape', 'N/A')}, Type: {type(item)}")
             
         np.savez(
                 file_path,

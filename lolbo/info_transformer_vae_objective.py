@@ -58,9 +58,12 @@ class InfoTransformerVAEObjective(LatentSpaceObjective):
         '''
         if type(z) is np.ndarray: 
             z = torch.from_numpy(z).float()
+        #lets put these on cuda
+        # feb 28 we will have these on cpu and see what happens
         z = z.to('cpu')
         self.vae = self.vae.eval()
         self.vae = self.vae.to('cpu') 
+        print("tensors changed to cpu bro")
         sample = self.vae.sample(z=z.reshape(-1, 2, self.dim//2))
         decoded_seqs = [self.dataobj.decode(sample[i]) for i in range(sample.size(-2))]
 
@@ -105,7 +108,9 @@ class InfoTransformerVAEObjective(LatentSpaceObjective):
         tokenized_seqs = self.dataobj.tokenize_sequence(xs_batch)
         encoded_seqs = [self.dataobj.encode(seq).unsqueeze(0) for seq in tokenized_seqs]
         X = collate_fn(encoded_seqs)
-        dict = self.vae(X.to('cpu'))
+        print("VAE parameters are on (vae_foward):", next(self.vae.parameters()).device)
+        self.vae.to('cuda')
+        dict = self.vae(X.to('cuda'))
         vae_loss, z = dict['loss'], dict['z'] 
         z = z.reshape(-1,self.dim) 
 

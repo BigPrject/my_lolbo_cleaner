@@ -3,6 +3,7 @@ wandb/*
 __pycache__/
 __pycache__/*
 *.ipynb
+.ipynb*
 *train-zs.csv
 finetuned_vae_ckpts/
 finetuned_vae_ckpts/*
@@ -11,5 +12,7 @@ optimization_all_collected_data/*
 robot
 robot_scripts
 saved_gp/
+done/
+../.vscode/
 lolbo_scripts/gp_predictions/*
 zeta

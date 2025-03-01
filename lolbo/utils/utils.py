@@ -36,7 +36,7 @@ def update_models_end_to_end_unconstrained(
             surr_loss = -mll(pred, batch_y.cuda())
             # add losses and back prop 
             loss = vae_loss + surr_loss
-            print(f"unconstrained: loss{loss}, vae_loss{vae_loss}, gp_loss{surr_loss}")
+            #print(f"unconstrained: loss{loss}, vae_loss{vae_loss}, gp_loss{surr_loss}")
             
             optimizer.zero_grad()
             loss.backward()
@@ -103,7 +103,7 @@ def update_models_end_to_end_with_constraints(
 
             # add losses and back prop 
             loss = vae_loss + surr_loss
-            print(f"loss{loss}, vae_loss{vae_loss}, gp_loss{surr_loss}")
+            #print(f"loss{loss}, vae_loss{vae_loss}, gp_loss{surr_loss}")
             
             loss_log.append((loss,vae_loss,surr_loss))
             optimizer.zero_grad()
